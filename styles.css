@@ -538,6 +538,7 @@ button, input, select, textarea { font: inherit; letter-spacing: 0; color: inher
   white-space: nowrap;
 }
 .badge.gray   { color: var(--gray);   background: var(--gray-soft); }
+.badge.blue   { color: var(--accent); background: var(--accent-soft); }
 .badge.orange { color: var(--orange); background: var(--orange-soft); }
 .badge.green  { color: var(--green);  background: var(--green-soft); }
 .badge.purple { color: var(--purple); background: var(--purple-soft); }

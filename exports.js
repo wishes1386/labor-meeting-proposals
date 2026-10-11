@@ -9,9 +9,9 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  var HEADERS = ['屆次', '次別', '開會日期', '案號', '類別', '提案方', '提案人', '連署人',
+  var HEADERS = ['屆次', '次別', '開會日期', '案號', '提案人',
                  '案由', '說明', '辦法', '決議', '執行單位', '辦理期限', '狀態'];
-  var WIDTHS = [8, 6, 12, 12, 10, 10, 10, 12, 34, 46, 46, 34, 14, 12, 8];
+  var WIDTHS = [8, 6, 12, 16, 12, 34, 46, 46, 34, 14, 12, 8];
 
   var CN_DIGITS = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
   var PRE_NUMBERED = /^\s*(([0-9]+|[一二三四五六七八九十]+)\s*[.、)）]|[（(]\s*([0-9]+|[一二三四五六七八九十]+)\s*[）)]|[-•*·])\s*/;
@@ -70,10 +70,7 @@
       session.round || '',
       slashDate(session.date),
       p.no || '',
-      p.category || '',
-      p.side || '',
       p.proposer || '',
-      p.coSigners || '',
       p.subject || '',
       numberedText(p.description),
       numberedText(p.method),
@@ -167,7 +164,7 @@
       return map;
     }
     var statRows = [['統計項目', '項目', '數量'], ['總計', '提案總數', all.length]];
-    [['狀態', 'status'], ['類別', 'category'], ['提案方', 'side']].forEach(function (pair) {
+    [['狀態', 'status'], ['執行單位', 'unit']].forEach(function (pair) {
       var map = tally(pair[1]);
       Object.keys(map).forEach(function (k) { statRows.push([pair[0], k, map[k]]); });
     });
@@ -247,14 +244,12 @@
         rows: [
           row([label('屆　次'), value(session.term), label('次　別'), value(session.round)]),
           row([label('開會日期'), value(rocDate(session.date)), label('提案編號'), value(p.no)]),
-          row([label('類　別'), value(p.category), label('提案方'), value(p.side)]),
-          row([label('提案人'), value(p.proposer), label('連署人'), value(p.coSigners)]),
+          row([label('提案人'), value(p.proposer), label('狀　態'), value(p.status || '草稿')]),
           row([label('案　由'), merged(p.subject)]),
           row([label('說　明'), merged(numberLines(p.description).join('\n'))]),
           row([label('辦　法'), merged(numberLines(p.method).join('\n'))]),
           row([label('決　議'), merged(numberLines(p.resolution).join('\n'))]),
-          row([label('執行單位'), value(p.unit), label('辦理期限'), value(slashDate(p.dueDate))]),
-          row([label('狀　態'), merged(p.status || '草稿')])
+          row([label('執行單位'), value(p.unit), label('辦理期限'), value(slashDate(p.dueDate))])
         ]
       });
     }

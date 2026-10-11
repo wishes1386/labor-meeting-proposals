@@ -4,10 +4,10 @@
   var E = window.Exporters;
   var STORAGE_KEY = 'laborMeetingProposalSystem.v1';
 
-  var STATUS = ['草稿', '送審', '已決議', '列管中', '結案'];
-  var STATUS_COLOR = { '草稿': 'gray', '送審': 'orange', '已決議': 'green', '列管中': 'purple', '結案': 'teal' };
-  var CATEGORIES = ['報告事項', '討論事項', '建議事項'];
-  var SIDES = ['勞方代表', '資方代表', '管理單位'];
+  var STATUS = ['草稿', '提案', '列管中', '結案'];
+  var STATUS_COLOR = { '草稿': 'gray', '提案': 'blue', '列管中': 'orange', '結案': 'teal' };
+  // 舊資料的狀態名稱對應到新流程
+  var STATUS_MIGRATION = { '送審': '提案', '已決議': '列管中' };
 
   var state = {
     sessions: [],
@@ -103,7 +103,17 @@
 
   // 空白提案：除了自動帶入的案號外，使用者什麼都沒填
   var BLANK_FIELDS = ['subject', 'description', 'method', 'resolution',
-    'proposer', 'coSigners', 'unit', 'dueDate'];
+    'proposer', 'unit', 'dueDate'];
+
+  // 舊狀態名稱（送審／已決議）對應到新的四個狀態
+  function migrateData() {
+    state.sessions.forEach(function (session) {
+      (session.proposals || []).forEach(function (p) {
+        if (STATUS_MIGRATION[p.status]) p.status = STATUS_MIGRATION[p.status];
+        if (STATUS.indexOf(p.status) < 0) p.status = '草稿';
+      });
+    });
+  }
 
   function isBlankProposal(p) {
     return !!p && BLANK_FIELDS.every(function (key) { return !String(p[key] || '').trim(); });
@@ -228,6 +238,7 @@
       var current = state.sessions.find(function (s) { return s.id === state.activeSessionId; });
       state.activeProposalId = current && current.proposals && current.proposals.length
         ? current.proposals[0].id : null;
+      migrateData();
       return true;
     } catch (err) {
       return false;
@@ -244,8 +255,8 @@
       note: '本次會議依《勞資會議實施辦法》規定召開。',
       proposals: [
         {
-          id: uid('p'), no: '115-08-01', category: '討論事項', side: '勞方代表',
-          proposer: '王小明', coSigners: '李佳蓉、張志豪',
+          id: uid('p'), no: '勞20260001',
+          proposer: '王小明',
           subject: '建議調整輪班人員休息時間安排',
           description: '廠區輪班人員於夜班時段連續工作 4 小時，現行僅安排 30 分鐘休息，'
             + '多名同仁反映精神負荷較高。\n鄰近同業多已調整為每 2 小時休息 15 分鐘。\n'
@@ -254,11 +265,11 @@
             + '由人力資源部會同製造部於一個月內完成班表試算。\n'
             + '試辦三個月後於下次勞資會議報告執行情形。',
           resolution: '照案通過，自 115 年 10 月 1 日起試辦三個月。',
-          unit: '人力資源部', dueDate: '2026-10-01', status: '已決議'
+          unit: '人力資源部', dueDate: '2026-10-01', status: '結案'
         },
         {
-          id: uid('p'), no: '115-08-02', category: '建議事項', side: '資方代表',
-          proposer: '黃美玲', coSigners: '',
+          id: uid('p'), no: '勞20260002',
+          proposer: '黃美玲',
           subject: '員工餐廳菜色與供餐時段改善',
           description: '部分同仁反映晚班用餐時段（18:30－19:00）供餐品項偏少。\n'
             + '建議增設一處取餐檯以分散人潮。',
@@ -267,15 +278,15 @@
           unit: '總務部', dueDate: '2026-10-20', status: '列管中'
         },
         {
-          id: uid('p'), no: '115-08-03', category: '討論事項', side: '勞方代表',
-          proposer: '李佳蓉', coSigners: '王小明',
+          id: uid('p'), no: '勞20260003',
+          proposer: '李佳蓉',
           subject: '加班費計算方式說明與補休期限調整',
           description: '同仁對休息日加班費之計算級距理解不一。\n'
             + '現行補休期限為 3 個月，部分同仁反映期限過短。',
           method: '請人力資源部製作加班費計算說明表並公告。\n'
             + '補休期限由 3 個月調整為 6 個月，並於勞動契約或工作規則中明定。',
           resolution: '',
-          unit: '人力資源部', dueDate: '2026-11-30', status: '送審'
+          unit: '人力資源部', dueDate: '2026-11-30', status: '提案'
         }
       ]
     };
@@ -285,16 +296,16 @@
       laborReps: '', mgmtReps: '', note: '',
       proposals: [
         {
-          id: uid('p'), no: '115-09-01', category: '報告事項', side: '管理單位',
-          proposer: '人力資源部', coSigners: '',
+          id: uid('p'), no: '勞20260004',
+          proposer: '人力資源部',
           subject: '第8次會議決議事項執行情形報告',
           description: '夜班休息時間調整案自 10 月 1 日起試辦，試辦期間無異常。',
           method: '報告事項，提請備查。',
           resolution: '', unit: '人力資源部', dueDate: '', status: '草稿'
         },
         {
-          id: uid('p'), no: '115-09-02', category: '討論事項', side: '勞方代表',
-          proposer: '張志豪', coSigners: '',
+          id: uid('p'), no: '勞20260005',
+          proposer: '張志豪',
           subject: '年度員工健康檢查項目調整建議',
           description: '現行健檢方案未包含心血管相關進階項目。',
           method: '建議於次年度合約中納入頸動脈超音波與心電圖檢查。',
@@ -363,7 +374,7 @@
     return (session.proposals || []).filter(function (p) {
       if (state.statusFilter !== 'all' && p.status !== state.statusFilter) return false;
       if (!query) return true;
-      return [p.no, p.subject, p.proposer, p.coSigners, p.description, p.method, p.resolution, p.unit]
+      return [p.no, p.subject, p.proposer, p.description, p.method, p.resolution, p.unit]
         .some(function (field) { return String(field || '').toLowerCase().indexOf(query) >= 0; });
     });
   }
@@ -388,8 +399,6 @@
 
   function rowHTML(p) {
     var meta = [
-      p.category || '',
-      p.side || '',
       p.proposer ? '提案人 ' + p.proposer : '',
       p.unit ? '執行 ' + p.unit : '',
       p.dueDate ? '期限 ' + E.slashDate(p.dueDate) : ''
@@ -489,7 +498,7 @@
       fillValues(body, session, ['term', 'round', 'date', 'time', 'place', 'chair', 'recorder', 'laborReps', 'mgmtReps', 'note']);
     } else {
       body.innerHTML = proposalFormHTML(proposal, !!pending);
-      fillValues(body, proposal, ['no', 'category', 'status', 'side', 'proposer', 'coSigners',
+      fillValues(body, proposal, ['no', 'status', 'proposer',
         'subject', 'description', 'method', 'resolution', 'unit', 'dueDate']);
       if (pending && state.pendingInvalid) {
         var subject = body.querySelector('#f-subject');
@@ -541,15 +550,12 @@
       '</div>' +
       '<div class="form-section">' +
         '<button class="section-toggle' + (state.advancedOpen ? ' is-open' : '') + '" data-act="toggleAdvanced" aria-expanded="' + (state.advancedOpen ? 'true' : 'false') + '">' +
-          '<i data-lucide="chevron-right"></i>進階設定：案號、類別、提案人、執行單位…' +
+          '<i data-lucide="chevron-right"></i>進階設定：案號、狀態、提案人、執行單位…' +
         '</button>' +
         '<div class="card" id="advancedCard"' + (state.advancedOpen ? '' : ' hidden') + '>' +
-          '<div class="field"><label for="f-no">案號</label><input id="f-no" type="text" data-k="no" placeholder="115-08-01"></div>' +
-          '<div class="field"><label for="f-cat">類別</label><select id="f-cat" data-k="category">' + options(CATEGORIES, p.category) + '</select></div>' +
+          '<div class="field"><label for="f-no">案號</label><input id="f-no" type="text" data-k="no" placeholder="勞20260001"></div>' +
           '<div class="field"><label for="f-status">狀態</label><select id="f-status" data-k="status">' + options(STATUS, p.status) + '</select></div>' +
-          '<div class="field"><label for="f-side">提案方</label><select id="f-side" data-k="side">' + options(SIDES, p.side) + '</select></div>' +
           '<div class="field"><label for="f-proposer">提案人</label><input id="f-proposer" type="text" data-k="proposer"></div>' +
-          '<div class="field"><label for="f-cosign">連署人</label><input id="f-cosign" type="text" data-k="coSigners"></div>' +
           '<div class="field"><label for="f-unit">執行單位</label><input id="f-unit" type="text" data-k="unit"></div>' +
           '<div class="field"><label for="f-due">辦理期限</label><input id="f-due" type="date" data-k="dueDate"></div>' +
         '</div>' +
@@ -615,9 +621,9 @@
       (session.proposals || []).forEach(function (p) { all.push(p); });
     });
     var byStatus = tally(all, 'status');
-    var resolved = byStatus['已決議'] || 0;
     var tracking = byStatus['列管中'] || 0;
-    var pending = (byStatus['草稿'] || 0) + (byStatus['送審'] || 0);
+    var draft = byStatus['草稿'] || 0;
+    var closed = byStatus['結案'] || 0;
 
     var sessionTally = {};
     state.sessions.forEach(function (session) {
@@ -629,14 +635,13 @@
         '<p>' + state.sessions.length + ' 場次・' + all.length + ' 件提案</p></div></div>' +
       '<div class="tiles">' +
         tile('提案總數', all.length, '件') +
-        tile('已決議', resolved, '件') +
+        tile('草稿', draft, '件') +
         tile('列管中', tracking, '件') +
-        tile('待審（草稿／送審）', pending, '件') +
+        tile('結案', closed, '件') +
       '</div>' +
       '<div class="panels">' +
         panel('依狀態分佈', barRows(byStatus, all.length)) +
-        panel('依類別分佈', barRows(tally(all, 'category'), all.length)) +
-        panel('依提案方分佈', barRows(tally(all, 'side'), all.length)) +
+        panel('依執行單位分佈', barRows(tally(all, 'unit'), all.length)) +
         panel('各場次提案數', barRows(sessionTally, all.length)) +
       '</div>';
   }
@@ -759,18 +764,23 @@
 
   function emptyProposal() {
     return {
-      id: uid('p'), no: '', category: '討論事項', side: '勞方代表', proposer: '', coSigners: '',
+      id: uid('p'), no: '', proposer: '',
       subject: '', description: '', method: '', resolution: '',
       unit: '', dueDate: '', status: '草稿'
     };
   }
 
-  function nextProposalNo(session) {
-    var count = (session.proposals || []).length + 1;
-    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(session.date || '');
-    var year = m ? String(Number(m[1]) - 1911) : String(new Date().getFullYear() - 1911);
-    var round = (/(\d+)/.exec(session.round || '') || [])[1] || '01';
-    return year + '-' + String(round).padStart(2, '0') + '-' + String(count).padStart(2, '0');
+  // 案號格式：勞 + 西元年 + 4 碼流水號，序號依建立順序遞增（同一年共用）
+  function nextProposalNo() {
+    var year = new Date().getFullYear();
+    var max = 0;
+    state.sessions.forEach(function (session) {
+      (session.proposals || []).forEach(function (p) {
+        var found = /^勞(\d{4})(\d{4})$/.exec(String(p.no || ''));
+        if (found && Number(found[1]) === year) max = Math.max(max, Number(found[2]));
+      });
+    });
+    return '勞' + year + String(max + 1).padStart(4, '0');
   }
 
   function addSession() {
@@ -802,7 +812,7 @@
     }
     // 新提案先不進清單，填好按「建立」才成立
     var proposal = emptyProposal();
-    proposal.no = nextProposalNo(session);
+    proposal.no = nextProposalNo();
     state.pending = proposal;
     state.pendingReturnId = state.activeProposalId;
     state.pendingInvalid = false;
@@ -824,7 +834,7 @@
     copy.id = uid('p');
     copy.status = '草稿';
     copy.resolution = '';
-    copy.no = nextProposalNo(session);
+    copy.no = nextProposalNo();
     session.proposals.splice(index + 1, 0, copy);
     state.activeProposalId = copy.id;
     state.panel = 'proposal';
