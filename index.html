@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-Hant" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="勞資會議提案">
+<meta name="format-detection" content="telephone=no">
+<title>勞資會議提案系統</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="titlebar">
+  <div class="tb-left">
+    <span class="app-mark"><i data-lucide="users-round"></i></span>
+    <h1>勞資會議提案系統</h1>
+  </div>
+
+  <div class="tb-center">
+    <div class="segmented" id="viewSwitch" role="tablist" aria-label="檢視切換">
+      <button class="seg is-on" data-view="list" role="tab" aria-selected="true">提案清單</button>
+      <button class="seg" data-view="stats" role="tab" aria-selected="false">統計總覽</button>
+    </div>
+  </div>
+
+  <div class="tb-right">
+    <label class="search">
+      <i data-lucide="search"></i>
+      <input id="searchInput" type="search" placeholder="搜尋案由、案號、提案人" aria-label="搜尋提案">
+    </label>
+    <button class="icon-btn" id="themeBtn" title="切換淺色／深色外觀" aria-label="切換外觀"><i data-lucide="sun-moon"></i></button>
+    <button class="btn" id="excelBtn" title="匯出全部場次的 Excel 提案總表"><i class="office-ico excel" aria-hidden="true"></i><span class="btn-label">Excel</span></button>
+    <button class="btn" id="wordBtn" title="匯出本場次的 Word 提案單"><i class="office-ico word" aria-hidden="true"></i><span class="btn-label">Word</span></button>
+    <button class="btn primary" id="addBtn" title="新增提案"><i data-lucide="plus"></i><span class="btn-label">新增提案</span></button>
+    <div class="menu-wrap">
+      <button class="icon-btn" id="moreBtn" title="更多" aria-haspopup="menu" aria-expanded="false"><i data-lucide="ellipsis"></i></button>
+      <div class="menu" id="moreMenu" role="menu" hidden>
+        <button role="menuitem" data-act="newSession"><i data-lucide="calendar-plus"></i>新增會議場次</button>
+        <hr>
+        <button role="menuitem" data-act="exportJson"><i data-lucide="download"></i>匯出備份（JSON）</button>
+        <button role="menuitem" data-act="importJson"><i data-lucide="upload"></i>匯入備份</button>
+        <hr>
+        <button role="menuitem" data-act="seed"><i data-lucide="sparkles"></i>載入範例資料</button>
+        <button role="menuitem" data-act="clear" class="danger"><i data-lucide="trash-2"></i>清除全部資料</button>
+      </div>
+    </div>
+    <input type="file" id="importFile" accept="application/json,.json" hidden>
+  </div>
+</header>
+
+<div class="workspace">
+
+  <aside class="sidebar">
+    <div class="side-head">
+      <span>會議場次</span>
+      <button class="icon-btn sm" id="addSessionBtn" title="新增會議場次" aria-label="新增會議場次"><i data-lucide="plus"></i></button>
+    </div>
+    <div class="session-list" id="sessionList"></div>
+    <div class="side-foot">
+      <span class="foot-note">資料儲存於本機瀏覽器</span>
+    </div>
+  </aside>
+
+  <main class="content">
+
+    <section class="view" id="listView">
+      <div class="notice" id="storageNotice" hidden>
+        <i data-lucide="triangle-alert"></i>
+        <span>此裝置無法自動保存資料（常見於直接開啟本機檔案）。請用右上角「⋯ → 匯出備份」保存，或改用網址開啟。</span>
+        <button class="icon-btn sm" id="noticeClose" title="關閉提醒" aria-label="關閉提醒"><i data-lucide="x"></i></button>
+      </div>
+      <div class="content-head">
+        <div class="ch-title">
+          <h2 id="sessionTitle">—</h2>
+          <p id="sessionMeta">—</p>
+        </div>
+        <div class="ch-actions">
+          <button class="btn" id="editSessionBtn"><i data-lucide="pencil"></i><span class="btn-label">場次資訊</span></button>
+        </div>
+      </div>
+      <div class="filters" id="filters"></div>
+      <div class="proposal-list" id="proposalList"></div>
+      <div class="selbar" id="selBar" hidden>
+        <span class="sel-count">已選 <b id="selCount">0</b> 件</span>
+        <button class="btn" data-act="pickAll"><i data-lucide="check-check"></i><span class="btn-label">全選本場次</span></button>
+        <button class="btn" data-act="pickNone"><i data-lucide="x"></i><span class="btn-label">清除</span></button>
+        <button class="btn primary" data-act="wordPicked"><i class="office-ico word" aria-hidden="true"></i>匯出提案單</button>
+      </div>
+    </section>
+
+    <section class="view" id="statsView" hidden></section>
+
+  </main>
+
+  <aside class="inspector" id="inspector" hidden>
+    <div class="insp-head">
+      <div class="segmented sm" id="inspSwitch" role="tablist" aria-label="編輯面板切換">
+        <button class="seg is-on" data-panel="proposal" role="tab" aria-selected="true">提案內容</button>
+        <button class="seg" data-panel="session" role="tab" aria-selected="false">場次資訊</button>
+      </div>
+      <button class="icon-btn sm" id="inspClose" title="關閉編輯面板" aria-label="關閉編輯面板"><i data-lucide="x"></i></button>
+    </div>
+    <div class="insp-body" id="inspBody"></div>
+  </aside>
+
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="vendor/xlsx.full.min.js"></script>
+<script src="vendor/docx.umd.js"></script>
+<script src="vendor/lucide.js"></script>
+<script src="exports.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
