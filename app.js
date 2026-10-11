@@ -97,6 +97,25 @@
     });
   }
 
+  // 空白提案：除了自動帶入的案號外，使用者什麼都沒填
+  var BLANK_FIELDS = ['subject', 'description', 'method', 'resolution',
+    'proposer', 'coSigners', 'unit', 'dueDate'];
+
+  function isBlankProposal(p) {
+    return !!p && BLANK_FIELDS.every(function (key) { return !String(p[key] || '').trim(); });
+  }
+
+  // 按了新增但完全沒輸入的草稿，在切換到別筆時自動丟掉，避免留下空卡片
+  function discardUntouchedDraft() {
+    var session = activeSession();
+    var current = activeProposal();
+    if (!session || !current || !current._draft) return;
+    if (!isBlankProposal(current)) return;
+    session.proposals = (session.proposals || []).filter(function (p) { return p.id !== current.id; });
+    delete state.selection[current.id];
+    state.activeProposalId = null;
+  }
+
   function pickedItems() {
     var items = [];
     state.sessions.forEach(function (session) {
@@ -107,6 +126,11 @@
     return items;
   }
 
+  // 草稿標記只存在於本次操作期間，不需要寫進儲存或備份檔
+  function dropDraftFlag(key, value) {
+    return key === '_draft' ? undefined : value;
+  }
+
   function save() {
     if (!storageOK) return;
     try {
@@ -114,7 +138,7 @@
         sessions: state.sessions,
         activeSessionId: state.activeSessionId,
         theme: state.theme
-      }));
+      }, dropDraftFlag));
     } catch (err) { /* 配額用盡等例外：仍可操作，只是不保留 */ }
   }
 
@@ -644,7 +668,7 @@
   }
 
   function exportJson() {
-    var payload = JSON.stringify({ exportedAt: new Date().toISOString(), sessions: state.sessions }, null, 2);
+    var payload = JSON.stringify({ exportedAt: new Date().toISOString(), sessions: state.sessions }, dropDraftFlag, 2);
     deliverFile(new Blob([payload], { type: 'application/json' }),
       '勞資會議提案備份_' + todayISO().replace(/-/g, '') + '.json', 'application/json');
     toast('已匯出備份檔');
@@ -654,7 +678,7 @@
 
   function emptyProposal() {
     return {
-      id: uid('p'), no: '', category: '討論事項', side: '勞方代表', proposer: '', coSigners: '',
+      id: uid('p'), _draft: true, no: '', category: '討論事項', side: '勞方代表', proposer: '', coSigners: '',
       subject: '', description: '', method: '', resolution: '',
       unit: '', dueDate: '', status: '草稿'
     };
@@ -689,6 +713,15 @@
   function addProposal() {
     var session = activeSession();
     if (!session) return addSession();
+    var current = activeProposal();
+    // 已經有一張還沒填的空白提案時，不要再產生第二張
+    if (current && current._draft && isBlankProposal(current)) {
+      openInspector();
+      var existing = $('#f-subject');
+      if (existing) existing.focus();
+      toast('目前的空白提案還沒填寫');
+      return;
+    }
     var proposal = emptyProposal();
     proposal.no = nextProposalNo(session);
     session.proposals = session.proposals || [];
@@ -743,7 +776,9 @@
     if (!session) return;
     var target = (session.proposals || []).find(function (p) { return p.id === id; });
     if (!target) return;
-    if (!window.confirm('確定刪除提案「' + (target.subject || target.no || '未命名') + '」？')) return;
+    // 空白提案沒東西可失去，直接刪除不跳確認；有內容的才需要確認
+    if (!isBlankProposal(target)
+      && !window.confirm('確定刪除提案「' + (target.subject || target.no || '未命名') + '」？')) return;
     session.proposals = session.proposals.filter(function (p) { return p.id !== id; });
     delete state.selection[id];
     if (state.activeProposalId === id) {
@@ -751,6 +786,25 @@
     }
     renderAll();
     toast('已刪除提案');
+  }
+
+  function deletePicked() {
+    var items = pickedItems();
+    if (!items.length) return;
+    var hasContent = items.some(function (item) { return !isBlankProposal(item.proposal); });
+    if (hasContent && !window.confirm('確定刪除選取的 ' + items.length + ' 件提案？')) return;
+    items.forEach(function (item) {
+      item.session.proposals = item.session.proposals.filter(function (p) {
+        return p.id !== item.proposal.id;
+      });
+      delete state.selection[item.proposal.id];
+    });
+    var session = activeSession();
+    if (session && !(session.proposals || []).some(function (p) { return p.id === state.activeProposalId; })) {
+      state.activeProposalId = session.proposals.length ? session.proposals[0].id : null;
+    }
+    renderAll();
+    toast('已刪除 ' + items.length + ' 件提案');
   }
 
   function deleteSession(id) {
@@ -772,6 +826,7 @@
   function selectSession(id) {
     var session = state.sessions.find(function (s) { return s.id === id; });
     if (!session) return;
+    discardUntouchedDraft();
     state.activeSessionId = id;
     state.activeProposalId = (session.proposals || []).length ? session.proposals[0].id : null;
     state.panel = state.activeProposalId ? 'proposal' : 'session';
@@ -781,6 +836,7 @@
   }
 
   function selectProposal(id) {
+    discardUntouchedDraft();
     state.activeProposalId = id;
     state.panel = 'proposal';
     renderAll();
@@ -815,6 +871,7 @@
       var proposal = activeProposal();
       if (!proposal) return;
       proposal[key] = el.value;
+      proposal._draft = false; // 開始填寫後就不再是「未動過的草稿」
       syncProposalRow(proposal);
     } else {
       var session = activeSession();
@@ -933,6 +990,7 @@
         if (act === 'pick') togglePick(action.dataset.id);
         else if (act === 'pickAll') pickAllVisible();
         else if (act === 'pickNone') { state.selection = {}; renderList(); renderSelectionBar(); }
+        else if (act === 'pickDelete') deletePicked();
         else if (act === 'wordPicked') exportWord(pickedItems());
         else if (act === 'duplicate') duplicateProposal(action.dataset.id);
         else if (act === 'wordOne') {

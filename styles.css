@@ -200,6 +200,9 @@ button, input, select, textarea { font: inherit; letter-spacing: 0; color: inher
 }
 .btn.primary:hover { background: var(--accent-press); }
 
+.btn.danger { color: var(--red); }
+.btn.danger:hover { background: var(--red); border-color: transparent; color: #fff; }
+
 /* 只有圖示的按鈕（Excel／Word 直接用 Office 圖示辨識，不帶文字） */
 .btn.icon-only {
   width: 28px;
@@ -494,7 +497,10 @@ button, input, select, textarea { font: inherit; letter-spacing: 0; color: inher
   transform: translateX(-50%);
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 6px;
+  max-width: calc(100vw - 24px);
   padding: 6px 8px 6px 14px;
   background: var(--chrome);
   backdrop-filter: saturate(180%) blur(24px);
@@ -719,6 +725,9 @@ body.has-selection .toast { bottom: 82px; }
   .tb-right { flex: 1; flex-wrap: wrap; justify-content: flex-end; min-width: 0; row-gap: 6px; }
   .search { width: auto; flex: 1 1 90px; min-width: 72px; }
   #addBtn .btn-label, #editSessionBtn .btn-label { display: none; }
+  /* 批次工具列：次要動作只留圖示，保留「匯出提案單」文字 */
+  .selbar .btn-label { display: none; }
+  .selbar .btn[data-act="wordPicked"] .btn-label { display: inline; }
   /* .no-inspector 的優先權較高，這裡必須一併覆蓋，否則手機會殘留雙欄 */
   .workspace,
   .workspace.no-inspector {
