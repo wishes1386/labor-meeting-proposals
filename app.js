@@ -19,7 +19,11 @@
     query: '',
     statusFilter: 'all',
     theme: null,
-    selection: {}
+    selection: {},
+    pending: null,          // 正在建立、尚未加入清單的新提案
+    pendingReturnId: null,  // 取消建立時要還原的選取
+    pendingInvalid: false,  // 送出時案由未填
+    advancedOpen: false     // 進階欄位是否展開
   };
 
   var $ = function (sel, root) { return (root || document).querySelector(sel); };
@@ -105,15 +109,57 @@
     return !!p && BLANK_FIELDS.every(function (key) { return !String(p[key] || '').trim(); });
   }
 
-  // 按了新增但完全沒輸入的草稿，在切換到別筆時自動丟掉，避免留下空卡片
-  function discardUntouchedDraft() {
+  // 正在編輯的對象：新增中的 pending 提案優先，其次是清單中選取的提案
+  function editingProposal() {
+    return state.pending || activeProposal();
+  }
+
+  // 新提案要先填好才成立：案由有填就自動建立，沒填就丟掉，避免留下空卡片
+  function settlePending() {
+    if (!state.pending) return false;
+    if (String(state.pending.subject || '').trim()) {
+      commitPending(true);
+    } else {
+      state.pending = null;
+      state.activeProposalId = state.pendingReturnId || state.activeProposalId;
+      state.pendingReturnId = null;
+      toast('已取消未填寫的新提案');
+    }
+    return true;
+  }
+
+  function commitPending(silent) {
     var session = activeSession();
-    var current = activeProposal();
-    if (!session || !current || !current._draft) return;
-    if (!isBlankProposal(current)) return;
-    session.proposals = (session.proposals || []).filter(function (p) { return p.id !== current.id; });
-    delete state.selection[current.id];
-    state.activeProposalId = null;
+    var proposal = state.pending;
+    if (!session || !proposal) return false;
+    if (!String(proposal.subject || '').trim()) {
+      state.pendingInvalid = true;
+      renderInspector();
+      focusField('subject');
+      toast('請先填寫案由');
+      return false;
+    }
+    session.proposals = session.proposals || [];
+    session.proposals.push(proposal);
+    state.pending = null;
+    state.pendingInvalid = false;
+    state.pendingReturnId = null;
+    state.activeProposalId = proposal.id;
+    renderAll();
+    revealProposal(proposal.id);
+    if (!silent) toast('已新增提案');
+    return true;
+  }
+
+  function cancelPending() {
+    if (!state.pending) return;
+    state.pending = null;
+    state.pendingInvalid = false;
+    state.activeProposalId = state.pendingReturnId || null;
+    state.pendingReturnId = null;
+    if (!activeProposal()) state.panel = 'session';
+    renderAll();
+    toast('已取消');
   }
 
   function pickedItems() {
@@ -126,11 +172,6 @@
     return items;
   }
 
-  // 草稿標記只存在於本次操作期間，不需要寫進儲存或備份檔
-  function dropDraftFlag(key, value) {
-    return key === '_draft' ? undefined : value;
-  }
-
   function save() {
     if (!storageOK) return;
     try {
@@ -138,7 +179,7 @@
         sessions: state.sessions,
         activeSessionId: state.activeSessionId,
         theme: state.theme
-      }, dropDraftFlag));
+      }));
     } catch (err) { /* 配額用盡等例外：仍可操作，只是不保留 */ }
   }
 
@@ -424,7 +465,8 @@
   function renderInspector() {
     var inspector = $('#inspector');
     var session = activeSession();
-    var proposal = activeProposal();
+    var pending = state.pending;
+    var proposal = pending || activeProposal();
 
     if (!session || !state.inspectorOpen) {
       inspector.hidden = true;
@@ -446,31 +488,48 @@
       body.innerHTML = sessionFormHTML();
       fillValues(body, session, ['term', 'round', 'date', 'time', 'place', 'chair', 'recorder', 'laborReps', 'mgmtReps', 'note']);
     } else {
-      body.innerHTML = proposalFormHTML(proposal);
+      body.innerHTML = proposalFormHTML(proposal, !!pending);
       fillValues(body, proposal, ['no', 'category', 'status', 'side', 'proposer', 'coSigners',
         'subject', 'description', 'method', 'resolution', 'unit', 'dueDate']);
+      if (pending && state.pendingInvalid) {
+        var subject = body.querySelector('#f-subject');
+        if (subject) subject.classList.add('is-invalid');
+      }
     }
     icons();
   }
 
-  function proposalFormHTML(p) {
+  function proposalFormHTML(p, isPending) {
+    var head = isPending
+      ? '<div class="pending-bar">' +
+          '<span class="pending-title"><i data-lucide="file-pen-line"></i>新提案</span>' +
+          '<span class="pending-actions">' +
+            '<button class="btn" data-act="cancelPending">取消</button>' +
+            '<button class="btn primary" data-act="commitPending"><i data-lucide="check"></i>建立</button>' +
+          '</span>' +
+        '</div>'
+      : '';
+
+    var footer = isPending
+      ? '<div class="insp-actions">' +
+          '<button class="btn primary" data-act="commitPending"><i data-lucide="check"></i>建立提案</button>' +
+          '<button class="btn" data-act="cancelPending">取消</button>' +
+        '</div>'
+      : '<div class="insp-actions">' +
+          '<button class="btn" data-act="wordOne" data-id="' + p.id + '"><i class="office-ico word" aria-hidden="true"></i>匯出提案單</button>' +
+          '<button class="btn" data-act="duplicate" data-id="' + p.id + '"><i data-lucide="copy"></i>複製</button>' +
+          '<button class="btn danger" data-act="deleteProposal" data-id="' + p.id + '"><i data-lucide="trash-2"></i>刪除</button>' +
+        '</div>';
+
     return '' +
-      '<div class="form-section">' +
-        '<h3>基本資料</h3>' +
-        '<div class="card">' +
-          '<div class="field"><label for="f-no">案號</label><input id="f-no" type="text" data-k="no" placeholder="115-08-01"></div>' +
-          '<div class="field"><label for="f-cat">類別</label><select id="f-cat" data-k="category">' + options(CATEGORIES, p.category) + '</select></div>' +
-          '<div class="field"><label for="f-status">狀態</label><select id="f-status" data-k="status">' + options(STATUS, p.status) + '</select></div>' +
-          '<div class="field"><label for="f-side">提案方</label><select id="f-side" data-k="side">' + options(SIDES, p.side) + '</select></div>' +
-          '<div class="field"><label for="f-proposer">提案人</label><input id="f-proposer" type="text" data-k="proposer"></div>' +
-          '<div class="field"><label for="f-cosign">連署人</label><input id="f-cosign" type="text" data-k="coSigners"></div>' +
-        '</div>' +
-      '</div>' +
+      head +
       '<div class="form-section">' +
         '<h3>提案內容</h3>' +
         '<div class="card">' +
-          '<div class="field wide"><label for="f-subject">案由</label>' +
-            '<textarea id="f-subject" rows="2" data-k="subject" placeholder="一句話說明本次提案重點"></textarea></div>' +
+          '<div class="field wide"><label for="f-subject">案由 <span class="req">必填</span></label>' +
+            '<textarea id="f-subject" rows="2" data-k="subject" placeholder="一句話說明本次提案重點"></textarea>' +
+            (isPending && state.pendingInvalid ? '<p class="field-error">請先填寫案由，才能建立提案。</p>' : '') +
+          '</div>' +
           '<div class="field wide"><label for="f-desc">說明</label>' +
             '<textarea id="f-desc" rows="5" data-k="description" placeholder="每行一點，匯出時自動編號"></textarea>' +
             '<p class="hint">一行寫一點。若沒有自行編號，匯出時會自動加上「一、二、三、」。</p></div>' +
@@ -481,17 +540,21 @@
         '</div>' +
       '</div>' +
       '<div class="form-section">' +
-        '<h3>執行與追蹤</h3>' +
-        '<div class="card">' +
+        '<button class="section-toggle' + (state.advancedOpen ? ' is-open' : '') + '" data-act="toggleAdvanced" aria-expanded="' + (state.advancedOpen ? 'true' : 'false') + '">' +
+          '<i data-lucide="chevron-right"></i>進階設定：案號、類別、提案人、執行單位…' +
+        '</button>' +
+        '<div class="card" id="advancedCard"' + (state.advancedOpen ? '' : ' hidden') + '>' +
+          '<div class="field"><label for="f-no">案號</label><input id="f-no" type="text" data-k="no" placeholder="115-08-01"></div>' +
+          '<div class="field"><label for="f-cat">類別</label><select id="f-cat" data-k="category">' + options(CATEGORIES, p.category) + '</select></div>' +
+          '<div class="field"><label for="f-status">狀態</label><select id="f-status" data-k="status">' + options(STATUS, p.status) + '</select></div>' +
+          '<div class="field"><label for="f-side">提案方</label><select id="f-side" data-k="side">' + options(SIDES, p.side) + '</select></div>' +
+          '<div class="field"><label for="f-proposer">提案人</label><input id="f-proposer" type="text" data-k="proposer"></div>' +
+          '<div class="field"><label for="f-cosign">連署人</label><input id="f-cosign" type="text" data-k="coSigners"></div>' +
           '<div class="field"><label for="f-unit">執行單位</label><input id="f-unit" type="text" data-k="unit"></div>' +
           '<div class="field"><label for="f-due">辦理期限</label><input id="f-due" type="date" data-k="dueDate"></div>' +
         '</div>' +
       '</div>' +
-      '<div class="insp-actions">' +
-        '<button class="btn" data-act="wordOne" data-id="' + p.id + '"><i class="office-ico word" aria-hidden="true"></i>匯出提案單</button>' +
-        '<button class="btn" data-act="duplicate" data-id="' + p.id + '"><i data-lucide="copy"></i>複製</button>' +
-        '<button class="btn danger" data-act="deleteProposal" data-id="' + p.id + '"><i data-lucide="trash-2"></i>刪除</button>' +
-      '</div>';
+      footer;
   }
 
   function sessionFormHTML() {
@@ -686,7 +749,7 @@
   }
 
   function exportJson() {
-    var payload = JSON.stringify({ exportedAt: new Date().toISOString(), sessions: state.sessions }, dropDraftFlag, 2);
+    var payload = JSON.stringify({ exportedAt: new Date().toISOString(), sessions: state.sessions }, null, 2);
     deliverFile(new Blob([payload], { type: 'application/json' }),
       '勞資會議提案備份_' + todayISO().replace(/-/g, '') + '.json', 'application/json');
     toast('已匯出備份檔');
@@ -696,7 +759,7 @@
 
   function emptyProposal() {
     return {
-      id: uid('p'), _draft: true, no: '', category: '討論事項', side: '勞方代表', proposer: '', coSigners: '',
+      id: uid('p'), no: '', category: '討論事項', side: '勞方代表', proposer: '', coSigners: '',
       subject: '', description: '', method: '', resolution: '',
       unit: '', dueDate: '', status: '草稿'
     };
@@ -715,41 +778,40 @@
       id: uid('s'), term: state.sessions.length ? (activeSession() || {}).term || '第1屆' : '第1屆',
       round: '第' + (state.sessions.length + 1) + '次', date: todayISO(), time: '14:00',
       place: '', chair: '', recorder: '', laborReps: '', mgmtReps: '', note: '',
-      proposals: [emptyProposal()]
+      proposals: []
     };
-    session.proposals[0].no = nextProposalNo(session);
     state.sessions.push(session);
     state.activeSessionId = session.id;
-    state.activeProposalId = session.proposals[0].id;
-    state.panel = 'proposal';
+    state.activeProposalId = null;
+    state.pending = null;
     state.view = 'list';
     renderAll();
-    openInspector();
     toast('已新增會議場次');
+    addProposal(); // 新場次直接進入第一筆提案的表單
   }
 
   function addProposal() {
     var session = activeSession();
     if (!session) return addSession();
-    var current = activeProposal();
-    // 已經有一張還沒填的空白提案時，不要再產生第二張
-    if (current && current._draft && isBlankProposal(current)) {
+    // 已經在建立新提案時，把游標帶回表單就好，不要再多開一張
+    if (state.pending) {
       openInspector();
-      var existing = $('#f-subject');
-      if (existing) existing.focus();
-      toast('目前的空白提案還沒填寫');
+      focusField('subject');
+      toast('正在建立新提案，填好案由後按「建立」');
       return;
     }
+    // 新提案先不進清單，填好按「建立」才成立
     var proposal = emptyProposal();
     proposal.no = nextProposalNo(session);
-    session.proposals = session.proposals || [];
-    session.proposals.push(proposal);
-    state.activeProposalId = proposal.id;
+    state.pending = proposal;
+    state.pendingReturnId = state.activeProposalId;
+    state.pendingInvalid = false;
+    state.activeProposalId = null;
+    state.advancedOpen = false;
     state.panel = 'proposal';
     state.view = 'list';
     renderAll();
     openInspector();
-    revealProposal(proposal.id);
     focusField('subject');
   }
 
@@ -846,7 +908,7 @@
   function selectSession(id) {
     var session = state.sessions.find(function (s) { return s.id === id; });
     if (!session) return;
-    discardUntouchedDraft();
+    settlePending();
     state.activeSessionId = id;
     state.activeProposalId = (session.proposals || []).length ? session.proposals[0].id : null;
     state.panel = state.activeProposalId ? 'proposal' : 'session';
@@ -856,8 +918,9 @@
   }
 
   function selectProposal(id) {
-    discardUntouchedDraft();
+    settlePending();
     state.activeProposalId = id;
+    state.advancedOpen = true; // 編輯既有提案時直接展開進階欄位
     state.panel = 'proposal';
     renderAll();
     openInspector();
@@ -888,11 +951,21 @@
     if (!el) return;
     var key = el.dataset.k;
     if (state.panel === 'proposal') {
-      var proposal = activeProposal();
+      var proposal = editingProposal();
       if (!proposal) return;
       proposal[key] = el.value;
-      proposal._draft = false; // 開始填寫後就不再是「未動過的草稿」
-      syncProposalRow(proposal);
+      if (state.pending) {
+        // 建立中的提案還沒進清單，補上案由後把錯誤提示收掉即可
+        if (state.pendingInvalid && String(state.pending.subject || '').trim()) {
+          state.pendingInvalid = false;
+          var input = document.querySelector('#f-subject');
+          if (input) input.classList.remove('is-invalid');
+          var error = document.querySelector('#inspBody .field-error');
+          if (error) error.remove();
+        }
+      } else {
+        syncProposalRow(proposal);
+      }
     } else {
       var session = activeSession();
       if (!session) return;
@@ -1046,7 +1119,16 @@
       var action = event.target.closest('[data-act]');
       if (!action) return;
       var act = action.dataset.act;
-      if (act === 'duplicate') duplicateProposal(action.dataset.id);
+      if (act === 'commitPending') commitPending(false);
+      else if (act === 'cancelPending') cancelPending();
+      else if (act === 'toggleAdvanced') {
+        state.advancedOpen = !state.advancedOpen;
+        renderInspector();
+        if (state.advancedOpen) {
+          var card = document.querySelector('#inspBody .form-section:last-of-type .card');
+          if (card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      } else if (act === 'duplicate') duplicateProposal(action.dataset.id);
       else if (act === 'deleteProposal') deleteProposal(action.dataset.id);
       else if (act === 'wordOne') {
         var item = findProposal(action.dataset.id);
@@ -1059,11 +1141,13 @@
     $('#inspSwitch').addEventListener('click', function (event) {
       var seg = event.target.closest('.seg');
       if (!seg) return;
+      if (seg.dataset.panel === 'session') settlePending();
       state.panel = seg.dataset.panel;
       renderInspector();
     });
 
     $('#inspClose').addEventListener('click', function () {
+      settlePending();
       state.inspectorOpen = false;
       renderInspector();
     });
@@ -1071,6 +1155,7 @@
     $('#addBtn').addEventListener('click', addProposal);
     $('#addSessionBtn').addEventListener('click', addSession);
     $('#editSessionBtn').addEventListener('click', function () {
+      settlePending();
       state.panel = 'session';
       state.inspectorOpen = true;
       renderInspector();
