@@ -611,25 +611,6 @@ button, input, select, textarea { font: inherit; letter-spacing: 0; color: inher
 .pending-title svg { width: 14px; height: 14px; color: var(--accent); }
 .pending-actions { display: flex; gap: 6px; }
 
-/* 可收合的進階欄位 */
-.section-toggle {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  width: 100%;
-  padding: 6px 2px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--label-2);
-  text-align: left;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-}
-.section-toggle:hover { color: var(--label); }
-.section-toggle svg { width: 13px; height: 13px; transition: transform .15s ease; }
-.section-toggle.is-open svg { transform: rotate(90deg); }
-
 .req { font-size: 10px; font-weight: 600; color: var(--red); margin-left: 2px; }
 .field-error { font-size: 10.5px; color: var(--red); margin-top: 5px; }
 .field textarea.is-invalid { border-color: var(--red); background: var(--red-soft); }
@@ -653,6 +634,22 @@ button, input, select, textarea { font: inherit; letter-spacing: 0; color: inher
 .field:last-child { border-bottom: 0; }
 .field.wide { grid-template-columns: 1fr; gap: 5px; padding: 9px 11px; }
 .field > label { font-size: 12px; color: var(--label-2); }
+
+/* 基本資料：兩欄緊湊排版（標籤在上、欄位在下） */
+.card.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.card.grid-2 .field {
+  display: block;
+  padding: 7px 10px;
+}
+.card.grid-2 .field:nth-child(even) { border-left: .5px solid var(--hairline); }
+.card.grid-2 .field > label {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 10.5px;
+}
 
 .field input[type="text"],
 .field input[type="date"],

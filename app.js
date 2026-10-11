@@ -22,8 +22,7 @@
     selection: {},
     pending: null,          // 正在建立、尚未加入清單的新提案
     pendingReturnId: null,  // 取消建立時要還原的選取
-    pendingInvalid: false,  // 送出時案由未填
-    advancedOpen: false     // 進階欄位是否展開
+    pendingInvalid: false   // 送出時案由未填
   };
 
   var $ = function (sel, root) { return (root || document).querySelector(sel); };
@@ -533,6 +532,16 @@
     return '' +
       head +
       '<div class="form-section">' +
+        '<h3>基本資料</h3>' +
+        '<div class="card grid-2">' +
+          '<div class="field"><label for="f-no">案號</label><input id="f-no" type="text" data-k="no" placeholder="勞20260001"></div>' +
+          '<div class="field"><label for="f-status">狀態</label><select id="f-status" data-k="status">' + options(STATUS, p.status) + '</select></div>' +
+          '<div class="field"><label for="f-proposer">提案人</label><input id="f-proposer" type="text" data-k="proposer"></div>' +
+          '<div class="field"><label for="f-unit">執行單位</label><input id="f-unit" type="text" data-k="unit"></div>' +
+          '<div class="field"><label for="f-due">辦理期限</label><input id="f-due" type="date" data-k="dueDate"></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="form-section">' +
         '<h3>提案內容</h3>' +
         '<div class="card">' +
           '<div class="field wide"><label for="f-subject">案由 <span class="req">必填</span></label>' +
@@ -540,24 +549,12 @@
             (isPending && state.pendingInvalid ? '<p class="field-error">請先填寫案由，才能建立提案。</p>' : '') +
           '</div>' +
           '<div class="field wide"><label for="f-desc">說明</label>' +
-            '<textarea id="f-desc" rows="5" data-k="description" placeholder="每行一點，匯出時自動編號"></textarea>' +
+            '<textarea id="f-desc" rows="4" data-k="description" placeholder="每行一點，匯出時自動編號"></textarea>' +
             '<p class="hint">一行寫一點。若沒有自行編號，匯出時會自動加上「一、二、三、」。</p></div>' +
           '<div class="field wide"><label for="f-method">辦法</label>' +
-            '<textarea id="f-method" rows="5" data-k="method" placeholder="具體建議作法"></textarea></div>' +
+            '<textarea id="f-method" rows="4" data-k="method" placeholder="具體建議作法"></textarea></div>' +
           '<div class="field wide"><label for="f-resolve">決議</label>' +
             '<textarea id="f-resolve" rows="3" data-k="resolution" placeholder="會議決議內容"></textarea></div>' +
-        '</div>' +
-      '</div>' +
-      '<div class="form-section">' +
-        '<button class="section-toggle' + (state.advancedOpen ? ' is-open' : '') + '" data-act="toggleAdvanced" aria-expanded="' + (state.advancedOpen ? 'true' : 'false') + '">' +
-          '<i data-lucide="chevron-right"></i>進階設定：案號、狀態、提案人、執行單位…' +
-        '</button>' +
-        '<div class="card" id="advancedCard"' + (state.advancedOpen ? '' : ' hidden') + '>' +
-          '<div class="field"><label for="f-no">案號</label><input id="f-no" type="text" data-k="no" placeholder="勞20260001"></div>' +
-          '<div class="field"><label for="f-status">狀態</label><select id="f-status" data-k="status">' + options(STATUS, p.status) + '</select></div>' +
-          '<div class="field"><label for="f-proposer">提案人</label><input id="f-proposer" type="text" data-k="proposer"></div>' +
-          '<div class="field"><label for="f-unit">執行單位</label><input id="f-unit" type="text" data-k="unit"></div>' +
-          '<div class="field"><label for="f-due">辦理期限</label><input id="f-due" type="date" data-k="dueDate"></div>' +
         '</div>' +
       '</div>' +
       footer;
@@ -817,7 +814,6 @@
     state.pendingReturnId = state.activeProposalId;
     state.pendingInvalid = false;
     state.activeProposalId = null;
-    state.advancedOpen = false;
     state.panel = 'proposal';
     state.view = 'list';
     renderAll();
@@ -930,7 +926,6 @@
   function selectProposal(id) {
     settlePending();
     state.activeProposalId = id;
-    state.advancedOpen = true; // 編輯既有提案時直接展開進階欄位
     state.panel = 'proposal';
     renderAll();
     openInspector();
@@ -1131,14 +1126,7 @@
       var act = action.dataset.act;
       if (act === 'commitPending') commitPending(false);
       else if (act === 'cancelPending') cancelPending();
-      else if (act === 'toggleAdvanced') {
-        state.advancedOpen = !state.advancedOpen;
-        renderInspector();
-        if (state.advancedOpen) {
-          var card = document.querySelector('#inspBody .form-section:last-of-type .card');
-          if (card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-      } else if (act === 'duplicate') duplicateProposal(action.dataset.id);
+      else if (act === 'duplicate') duplicateProposal(action.dataset.id);
       else if (act === 'deleteProposal') deleteProposal(action.dataset.id);
       else if (act === 'wordOne') {
         var item = findProposal(action.dataset.id);
