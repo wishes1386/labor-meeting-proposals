@@ -200,6 +200,17 @@ button, input, select, textarea { font: inherit; letter-spacing: 0; color: inher
 }
 .btn.primary:hover { background: var(--accent-press); }
 
+/* 只有圖示的按鈕（Excel／Word 直接用 Office 圖示辨識，不帶文字） */
+.btn.icon-only {
+  width: 28px;
+  padding: 0;
+  justify-content: center;
+}
+.btn.icon-only .office-ico { width: 17px; height: 17px; }
+@media (pointer: coarse) {
+  .btn.icon-only { width: 38px; }
+}
+
 .icon-btn {
   width: 28px; height: 28px;
   display: grid; place-items: center;
@@ -704,10 +715,9 @@ body.has-selection .toast { bottom: 82px; }
   }
   .tb-center { order: 3; justify-content: flex-start; }
   .tb-left { min-width: 0; }
-  /* 手機：允許換行當保險，並讓出外觀切換鈕的空間，避免工具列撐破版面 */
+  /* 手機：允許換行當保險（Excel／Word 改成純圖示後空間足夠，外觀鈕可保留） */
   .tb-right { flex: 1; flex-wrap: wrap; justify-content: flex-end; min-width: 0; row-gap: 6px; }
-  .search { width: auto; flex: 1 1 90px; min-width: 84px; }
-  #themeBtn { display: none; }
+  .search { width: auto; flex: 1 1 90px; min-width: 72px; }
   #addBtn .btn-label, #editSessionBtn .btn-label { display: none; }
   /* .no-inspector 的優先權較高，這裡必須一併覆蓋，否則手機會殘留雙欄 */
   .workspace,
