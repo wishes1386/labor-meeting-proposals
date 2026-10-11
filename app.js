@@ -155,6 +155,24 @@
     }
   }
 
+  // 把游標帶到指定欄位（新增提案時應該直接落在「案由」，而不是自動帶入的案號）
+  function focusField(key) {
+    var el = document.querySelector('#inspBody [data-k="' + key + '"]');
+    if (el) el.focus();
+  }
+
+  // 新增或複製後，把新卡片捲進視野並短暫標示，避免使用者以為「按了沒反應」
+  function revealProposal(id) {
+    var body = $('#inspBody');
+    if (body) body.scrollTop = 0;
+    if (isNarrow()) return; // 手機由 openInspector 捲到表單，兩個捲動同時做會互相打架
+    var row = document.querySelector('.prow[data-id="' + id + '"]');
+    if (!row) return;
+    if (row.scrollIntoView) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    row.classList.add('is-new');
+    setTimeout(function () { row.classList.remove('is-new'); }, 1400);
+  }
+
   function load() {
     var raw;
     if (!storageOK) return false;
@@ -731,8 +749,8 @@
     state.view = 'list';
     renderAll();
     openInspector();
-    var input = $('#f-no');
-    if (input) input.focus();
+    revealProposal(proposal.id);
+    focusField('subject');
   }
 
   function duplicateProposal(id) {
@@ -750,6 +768,8 @@
     state.panel = 'proposal';
     renderAll();
     openInspector();
+    revealProposal(copy.id);
+    focusField('subject');
     toast('已複製提案');
   }
 

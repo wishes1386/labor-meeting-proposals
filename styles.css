@@ -450,6 +450,13 @@ button, input, select, textarea { font: inherit; letter-spacing: 0; color: inher
 }
 .prow:hover { border-color: var(--separator); }
 .prow.is-on { border-color: var(--accent); box-shadow: 0 0 0 2.5px var(--accent-soft); }
+/* 新增或複製後的短暫標示，讓眼睛找得到新卡片 */
+.prow.is-new { animation: newRow 1.4s ease-out; }
+@keyframes newRow {
+  0%   { background: var(--accent-soft); border-color: var(--accent); }
+  60%  { background: var(--accent-soft); border-color: var(--accent); }
+  100% { background: var(--surface); border-color: var(--hairline); }
+}
 
 .prow-main { flex: 1; min-width: 0; }
 
