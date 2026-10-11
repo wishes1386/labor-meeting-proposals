@@ -101,8 +101,7 @@
   }
 
   // 空白提案：除了自動帶入的案號外，使用者什麼都沒填
-  var BLANK_FIELDS = ['subject', 'description', 'method', 'resolution',
-    'proposer', 'unit', 'dueDate'];
+  var BLANK_FIELDS = ['subject', 'description', 'method', 'resolution', 'proposer'];
 
   // 舊狀態名稱（送審／已決議）對應到新的四個狀態
   function migrateData() {
@@ -110,6 +109,8 @@
       (session.proposals || []).forEach(function (p) {
         if (STATUS_MIGRATION[p.status]) p.status = STATUS_MIGRATION[p.status];
         if (STATUS.indexOf(p.status) < 0) p.status = '草稿';
+        // 「辦理期限」已改名為「提案日期」，舊數值沿用不遺失
+        if (p.proposalDate == null && p.dueDate != null) p.proposalDate = p.dueDate;
       });
     });
   }
@@ -264,7 +265,7 @@
             + '由人力資源部會同製造部於一個月內完成班表試算。\n'
             + '試辦三個月後於下次勞資會議報告執行情形。',
           resolution: '照案通過，自 115 年 10 月 1 日起試辦三個月。',
-          unit: '人力資源部', dueDate: '2026-10-01', status: '結案'
+          proposalDate: '2026-09-10', status: '結案'
         },
         {
           id: uid('p'), no: '勞20260002',
@@ -274,7 +275,7 @@
             + '建議增設一處取餐檯以分散人潮。',
           method: '請總務部評估增設取餐檯之可行性與費用。\n延期另議。',
           resolution: '請總務部於一個月內提出評估報告後續討論。',
-          unit: '總務部', dueDate: '2026-10-20', status: '列管中'
+          proposalDate: '2026-09-12', status: '列管中'
         },
         {
           id: uid('p'), no: '勞20260003',
@@ -285,7 +286,7 @@
           method: '請人力資源部製作加班費計算說明表並公告。\n'
             + '補休期限由 3 個月調整為 6 個月，並於勞動契約或工作規則中明定。',
           resolution: '',
-          unit: '人力資源部', dueDate: '2026-11-30', status: '提案'
+          proposalDate: '2026-09-15', status: '提案'
         }
       ]
     };
@@ -300,7 +301,7 @@
           subject: '第8次會議決議事項執行情形報告',
           description: '夜班休息時間調整案自 10 月 1 日起試辦，試辦期間無異常。',
           method: '報告事項，提請備查。',
-          resolution: '', unit: '人力資源部', dueDate: '', status: '草稿'
+          resolution: '', proposalDate: '', status: '草稿'
         },
         {
           id: uid('p'), no: '勞20260005',
@@ -308,7 +309,7 @@
           subject: '年度員工健康檢查項目調整建議',
           description: '現行健檢方案未包含心血管相關進階項目。',
           method: '建議於次年度合約中納入頸動脈超音波與心電圖檢查。',
-          resolution: '', unit: '人力資源部', dueDate: '2026-12-31', status: '草稿'
+          resolution: '', proposalDate: '2026-12-10', status: '草稿'
         }
       ]
     };
@@ -373,7 +374,7 @@
     return (session.proposals || []).filter(function (p) {
       if (state.statusFilter !== 'all' && p.status !== state.statusFilter) return false;
       if (!query) return true;
-      return [p.no, p.subject, p.proposer, p.description, p.method, p.resolution, p.unit]
+      return [p.no, p.subject, p.proposer, p.description, p.method, p.resolution]
         .some(function (field) { return String(field || '').toLowerCase().indexOf(query) >= 0; });
     });
   }
@@ -399,8 +400,7 @@
   function rowHTML(p) {
     var meta = [
       p.proposer ? '提案人 ' + p.proposer : '',
-      p.unit ? '執行 ' + p.unit : '',
-      p.dueDate ? '期限 ' + E.slashDate(p.dueDate) : ''
+      p.proposalDate ? '提案日期 ' + E.slashDate(p.proposalDate) : ''
     ].filter(Boolean);
     var picked = !!state.selection[p.id];
     return '' +
@@ -498,7 +498,7 @@
     } else {
       body.innerHTML = proposalFormHTML(proposal, !!pending);
       fillValues(body, proposal, ['no', 'status', 'proposer',
-        'subject', 'description', 'method', 'resolution', 'unit', 'dueDate']);
+        'subject', 'description', 'method', 'resolution', 'proposalDate']);
       if (pending && state.pendingInvalid) {
         var subject = body.querySelector('#f-subject');
         if (subject) subject.classList.add('is-invalid');
@@ -537,8 +537,7 @@
           '<div class="field"><label for="f-no">案號</label><input id="f-no" type="text" data-k="no" placeholder="勞20260001"></div>' +
           '<div class="field"><label for="f-status">狀態</label><select id="f-status" data-k="status">' + options(STATUS, p.status) + '</select></div>' +
           '<div class="field"><label for="f-proposer">提案人</label><input id="f-proposer" type="text" data-k="proposer"></div>' +
-          '<div class="field"><label for="f-unit">執行單位</label><input id="f-unit" type="text" data-k="unit"></div>' +
-          '<div class="field"><label for="f-due">辦理期限</label><input id="f-due" type="date" data-k="dueDate"></div>' +
+          '<div class="field"><label for="f-date">提案日期</label><input id="f-date" type="date" data-k="proposalDate"></div>' +
         '</div>' +
       '</div>' +
       '<div class="form-section">' +
@@ -638,7 +637,6 @@
       '</div>' +
       '<div class="panels">' +
         panel('依狀態分佈', barRows(byStatus, all.length)) +
-        panel('依執行單位分佈', barRows(tally(all, 'unit'), all.length)) +
         panel('各場次提案數', barRows(sessionTally, all.length)) +
       '</div>';
   }
@@ -763,7 +761,7 @@
     return {
       id: uid('p'), no: '', proposer: '',
       subject: '', description: '', method: '', resolution: '',
-      unit: '', dueDate: '', status: '草稿'
+      proposalDate: todayISO(), status: '草稿'
     };
   }
 
