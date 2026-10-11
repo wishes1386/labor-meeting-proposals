@@ -290,6 +290,8 @@ button, input, select, textarea { font: inherit; letter-spacing: 0; color: inher
   display: grid;
   grid-template-columns: 236px minmax(0, 1fr) 372px;
 }
+/* 讓格線子項可以縮到比內容更窄，否則內部橫向捲動區（如場次列）會把整個版面撐寬 */
+.workspace > * { min-width: 0; }
 @supports (height: 100dvh) {
   .workspace { height: calc(100dvh - 52px); }
 }
@@ -702,8 +704,10 @@ body.has-selection .toast { bottom: 82px; }
   }
   .tb-center { order: 3; justify-content: flex-start; }
   .tb-left { min-width: 0; }
-  .tb-right { flex: 1; }
+  /* 手機：允許換行當保險，並讓出外觀切換鈕的空間，避免工具列撐破版面 */
+  .tb-right { flex: 1; flex-wrap: wrap; justify-content: flex-end; min-width: 0; row-gap: 6px; }
   .search { width: auto; flex: 1 1 90px; min-width: 84px; }
+  #themeBtn { display: none; }
   #addBtn .btn-label, #editSessionBtn .btn-label { display: none; }
   /* .no-inspector 的優先權較高，這裡必須一併覆蓋，否則手機會殘留雙欄 */
   .workspace,
